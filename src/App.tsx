@@ -7,6 +7,7 @@ const CentsMeter = ({ cents }: { cents: number }) => {
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
+    // Diminuído para mais suavidade
     const smoothingFactor = 0.05;
 
     const animate = () => {
@@ -24,7 +25,6 @@ const CentsMeter = ({ cents }: { cents: number }) => {
 
     return () => {
       if (animationFrameRef.current) {
-        // A CORREÇÃO ESTÁ AQUI
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
@@ -63,82 +63,57 @@ function App() {
   const [rawValues, setRawValues] = useState({ freq: 0, conf: 0 });
 
   useEffect(() => {
-    // Agora o 'rawValues' sempre reflete a última nota, ou zera se não houver nota.
     if (note) {
       setRawValues({ freq: note.frequency, conf: note.confidence });
     } else {
-      setRawValues(prev => ({ freq: prev.freq, conf: 0 })); // Mantém a última frequência, mas zera a confiança
+      setRawValues(prev => ({ freq: prev.freq, conf: 0 }));
     }
   }, [note]);
 
+  // O componente da interface do afinador foi movido para fora para clareza
+  const TunerInterface = () => {
+    const [isLockedIn, setIsLockedIn] = useState(false);
+    const inTuneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-const TunerInterface = () => {
-  // Novo estado para rastrear se a nota está "travada" como afinada
-  const [isLockedIn, setIsLockedIn] = useState(false);
-  const inTuneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    // Limpa qualquer timeout anterior
-    if (inTuneTimeoutRef.current) {
-      clearTimeout(inTuneTimeoutRef.current);
-    }
-
-    if (note && Math.abs(note.cents) < 5) {
-      // Se a nota está afinada, inicia um timer de 1 segundo
-      inTuneTimeoutRef.current = setTimeout(() => {
-        setIsLockedIn(true); // Após 1s, "trava" no estado afinado
-      }, 1000);
-    } else {
-      // Se a nota desafinou, reseta o estado imediatamente
-      setIsLockedIn(false);
-    }
-
-    // Função de limpeza
-    return () => {
+    useEffect(() => {
       if (inTuneTimeoutRef.current) {
         clearTimeout(inTuneTimeoutRef.current);
       }
-    };
-  }, [note]); // Este efeito depende da 'note'
 
-  if (!note) {
-    return (
-      <div className="h-[250px] flex flex-col items-center justify-center">
-        <p className="text-2xl text-gray-400">Toque uma nota...</p>
-      </div>
-    );
-  }
-  
-  // A condição de "afinado" agora usa nosso novo estado 'isLockedIn'
-  const isVisuallyInTune = isLockedIn || Math.abs(note.cents) < 5;
+      if (note && Math.abs(note.cents) < 5) {
+        inTuneTimeoutRef.current = setTimeout(() => {
+          setIsLockedIn(true);
+        }, 1000);
+      } else {
+        setIsLockedIn(false);
+      }
 
-  return (
-    <div className={`w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px] transition-all duration-500 ${isLockedIn ? 'ring-4 ring-green-400' : ''}`}>
-      <div className="flex items-baseline space-x-2">
-        <p className={`text-8xl font-bold transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-blue-300'} ${isLockedIn ? 'scale-110' : ''}`}>
-          {note.name.slice(0, -1)}
-        </p>
-        <p className="text-4xl text-gray-400">{note.name.slice(-1)}</p>
-      </div>
-      <p className={`text-xl font-medium transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-red-400'} ${isLockedIn ? 'scale-110' : ''}`}>
-        {note.cents.toFixed(1)} cents
-      </p>
-      <CentsMeter cents={note.cents} />
-    </div>
-  );
-};
+      return () => {
+        if (inTuneTimeoutRef.current) {
+          clearTimeout(inTuneTimeoutRef.current);
+        }
+      };
+    }, [note]);
+
+    if (!note) {
+      return (
+        <div className="h-[250px] flex flex-col items-center justify-center">
+          <p className="text-2xl text-gray-400">Toque uma nota...</p>
+        </div>
+      );
+    }
     
-    const isInTune = Math.abs(note.cents) < 5;
+    const isVisuallyInTune = isLockedIn || Math.abs(note.cents) < 5;
 
     return (
-      <div className="w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px]">
+      <div className={`w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px] transition-all duration-500 ${isLockedIn ? 'ring-4 ring-green-400' : ''}`}>
         <div className="flex items-baseline space-x-2">
-          <p className={`text-8xl font-bold transition-colors duration-200 ${isInTune ? 'text-green-400' : 'text-blue-300'}`}>
+          <p className={`text-8xl font-bold transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-blue-300'} ${isLockedIn ? 'scale-110' : ''}`}>
             {note.name.slice(0, -1)}
           </p>
           <p className="text-4xl text-gray-400">{note.name.slice(-1)}</p>
         </div>
-        <p className={`text-xl font-medium ${isInTune ? 'text-green-400' : 'text-red-400'}`}>
+        <p className={`text-xl font-medium transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-red-400'} ${isLockedIn ? 'scale-110' : ''}`}>
           {note.cents.toFixed(1)} cents
         </p>
         <CentsMeter cents={note.cents} />
@@ -150,7 +125,7 @@ const TunerInterface = () => {
     <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center text-center p-4 font-mono relative">
       <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold">StringMaster</h1>
-        <p className="text-xl text-blue-300">v3.2 - UX Polish</p>
+        <p className="text-xl text-blue-300">v3.3 - Polished & Gamified</p>
       </header>
 
       <main>
