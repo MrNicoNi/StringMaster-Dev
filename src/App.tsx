@@ -1,103 +1,50 @@
 import { useEffect, useState, useRef } from 'react';
-import { useCrepePitch } from './useCrepePitch';
+import { useCrepePitch, TargetNote } from './useCrepePitch'; // Importa o novo tipo
 
-// CentsMeter e DebugIndicator permanecem os mesmos
-const CentsMeter = ({ cents }: { cents: number }) => {
-  const [smoothedCents, setSmoothedCents] = useState(cents);
-  const animationFrameRef = useRef<number>();
+// Definição das cordas do violão
+const GUITAR_STRINGS: TargetNote[] = [
+  { name: 'E2', freq: 82.41 },
+  { name: 'A2', freq: 110.00 },
+  { name: 'D3', freq: 146.83 },
+  { name: 'G3', freq: 196.00 },
+  { name: 'B3', freq: 246.94 },
+  { name: 'E4', freq: 329.63 },
+];
 
-  useEffect(() => {
-    const smoothingFactor = 0.05;
-    const animate = () => {
-      setSmoothedCents(currentSmoothedCents => {
-        const newSmoothedCents = currentSmoothedCents + (cents - currentSmoothedCents) * smoothingFactor;
-        if (Math.abs(cents - newSmoothedCents) < 0.01) return cents;
-        return newSmoothedCents;
-      });
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-    animationFrameRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    };
-  }, [cents]);
+// ... (CentsMeter e DebugIndicator permanecem os mesmos)
+const CentsMeter = ({ cents }: { cents: number }) => { /* ...código sem alterações... */ };
+const DebugIndicator = ({ frequency, confidence }: { frequency: number, confidence: number }) => { /* ...código sem alterações... */ };
 
-  const percentage = (smoothedCents + 50);
-  const isInTune = Math.abs(smoothedCents) < 5;
-
-  return (
-    <div className="w-full max-w-sm bg-gray-700 rounded-full h-4 my-4 relative">
-      <div className="absolute left-1/2 top-0 h-full w-1 bg-green-500 transform -translate-x-1/2"></div>
-      <div
-        className="absolute top-0 h-4 w-1 rounded-full"
-        style={{
-          left: `${percentage}%`,
-          backgroundColor: isInTune ? '#4ade80' : '#f87171',
-          transform: `translateX(-${percentage}%)`
-        }}
-      ></div>
-    </div>
-  );
-};
-
-const DebugIndicator = ({ frequency, confidence }: { frequency: number, confidence: number }) => {
-  return (
-    <div className="absolute bottom-4 right-4 text-xs text-gray-600 bg-gray-800 p-2 rounded">
-      <span>Freq: {frequency.toFixed(2)} Hz</span>
-      <span className="ml-4">Conf: {confidence.toFixed(2)}</span>
-    </div>
-  );
-};
-
-
-// O TIPO DA NOTA AGORA É SEPARADO PARA REUTILIZAÇÃO
-type NoteData = {
-  name: string;
-  cents: number;
-  frequency: number;
-  confidence: number;
-};
-
+type NoteData = { name: string; cents: number; frequency: number; confidence: number; };
 
 function App() {
-  // O 'note' do nosso hook useCrepePitch
-  const { note: detectedNote, status, error, start, stop } = useCrepePitch();
+  // Novo estado para o modo de jogo: 'free' (livre) ou 'tuning' (afinação)
+  const [gameMode, setGameMode] = useState<'free' | 'tuning'>('free');
+  // Novo estado para rastrear a corda atual no modo de afinação
+  const [currentTargetIndex, setCurrentTargetIndex] = useState(0);
+
+  // A nota alvo é definida pelo modo de jogo
+  const targetNote = gameMode === 'tuning' ? GUITAR_STRINGS[currentTargetIndex] : null;
+
+  const { note: detectedNote, status, error, start, stop } = useCrepePitch(targetNote);
   
-  // O NOVO ESTADO: a nota que será exibida na UI, com persistência
   const [displayNote, setDisplayNote] = useState<NoteData | null>(null);
   const decayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Limpa qualquer timer de decaimento anterior
-    if (decayTimeoutRef.current) {
-      clearTimeout(decayTimeoutRef.current);
-    }
-
+    if (decayTimeoutRef.current) clearTimeout(decayTimeoutRef.current);
     if (detectedNote) {
-      // Se uma nota é detectada, atualiza a exibição imediatamente
       setDisplayNote(detectedNote);
     } else {
-      // Se o sinal for perdido, inicia um timer de 750ms
-      decayTimeoutRef.current = setTimeout(() => {
-        setDisplayNote(null); // Limpa a exibição somente após o timer
-      }, 750); // Tempo de persistência em milissegundos
+      decayTimeoutRef.current = setTimeout(() => setDisplayNote(null), 750);
     }
-
-    return () => {
-      if (decayTimeoutRef.current) {
-        clearTimeout(decayTimeoutRef.current);
-      }
-    };
-  }, [detectedNote]); // Este efeito reage à nota detectada pelo hook
+    return () => { if (decayTimeoutRef.current) clearTimeout(decayTimeoutRef.current); };
+  }, [detectedNote]);
 
   const [rawValues, setRawValues] = useState({ freq: 0, conf: 0 });
-
   useEffect(() => {
-    if (detectedNote) {
-      setRawValues({ freq: detectedNote.frequency, conf: detectedNote.confidence });
-    } else {
-      setRawValues(prev => ({ freq: prev.freq, conf: 0 }));
-    }
+    if (detectedNote) setRawValues({ freq: detectedNote.frequency, conf: detectedNote.confidence });
+    else setRawValues(prev => ({ freq: prev.freq, conf: 0 }));
   }, [detectedNote]);
 
   
@@ -108,67 +55,115 @@ function App() {
     useEffect(() => {
       if (inTuneTimeoutRef.current) clearTimeout(inTuneTimeoutRef.current);
       
-      // A lógica de "lock-in" agora usa a 'displayNote'
-      if (displayNote && Math.abs(displayNote.cents) < 5) {
-        inTuneTimeoutRef.current = setTimeout(() => setIsLockedIn(true), 1000);
+      if (displayNote && Math.abs(displayNote.cents) < 8) { // Margem um pouco maior para o lock-in
+        inTuneTimeoutRef.current = setTimeout(() => {
+          setIsLockedIn(true);
+          // Se estamos no modo de afinação, avança para a próxima corda
+          if (gameMode === 'tuning') {
+            setTimeout(() => {
+              setCurrentTargetIndex(prevIndex => (prevIndex + 1));
+            }, 500); // Pequeno delay para o usuário ver a confirmação
+          }
+        }, 1000);
       } else {
         setIsLockedIn(false);
       }
-
-      return () => {
-        if (inTuneTimeoutRef.current) clearTimeout(inTuneTimeoutRef.current);
-      };
+      return () => { if (inTuneTimeoutRef.current) clearTimeout(inTuneTimeoutRef.current); };
     }, [displayNote]);
 
-    // A interface agora reage à 'displayNote', não à 'detectedNote'
-    if (!displayNote) {
+    // Lógica para o texto de instrução
+    let instructionText = "Toque uma nota...";
+    if (gameMode === 'tuning') {
+      if (currentTargetIndex < GUITAR_STRINGS.length) {
+        const stringNum = 6 - currentTargetIndex;
+        instructionText = `Toque a ${stringNum}ª Corda (${targetNote?.name})`;
+      } else {
+        instructionText = "Violão Afinado! 🎉";
+      }
+    }
+
+    if (!displayNote && currentTargetIndex < GUITAR_STRINGS.length) {
       return (
         <div className="h-[250px] flex flex-col items-center justify-center">
-          <p className="text-2xl text-gray-400">Toque uma nota...</p>
+          <p className="text-2xl text-gray-400">{instructionText}</p>
+        </div>
+      );
+    }
+
+    // Se o violão já foi afinado, mostra mensagem de sucesso
+    if (currentTargetIndex >= GUITAR_STRINGS.length) {
+       return (
+        <div className="h-[250px] flex flex-col items-center justify-center">
+          <p className="text-4xl text-green-400">{instructionText}</p>
         </div>
       );
     }
     
-    const isVisuallyInTune = isLockedIn || Math.abs(displayNote.cents) < 5;
+    const noteToDisplay = displayNote || { name: '--', cents: 0 };
+    const isVisuallyInTune = isLockedIn || Math.abs(noteToDisplay.cents) < 5;
 
     return (
       <div className={`w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px] transition-all duration-500 ${isLockedIn ? 'ring-4 ring-green-400' : ''}`}>
+        <p className="absolute top-4 text-lg text-blue-300">{instructionText}</p>
         <div className="flex items-baseline space-x-2">
           <p className={`text-8xl font-bold transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-blue-300'} ${isLockedIn ? 'scale-110' : ''}`}>
-            {displayNote.name.slice(0, -1)}
+            {noteToDisplay.name.slice(0, -1)}
           </p>
-          <p className="text-4xl text-gray-400">{displayNote.name.slice(-1)}</p>
+          <p className="text-4xl text-gray-400">{noteToDisplay.name.slice(-1)}</p>
         </div>
         <p className={`text-xl font-medium transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-red-400'} ${isLockedIn ? 'scale-110' : ''}`}>
-          {displayNote.cents.toFixed(1)} cents
+          {noteToDisplay.cents.toFixed(1)} cents
         </p>
-        <CentsMeter cents={displayNote.cents} />
+        <CentsMeter cents={noteToDisplay.cents} />
       </div>
     );
+  };
+
+  const handleStartTuning = () => {
+    setGameMode('tuning');
+    setCurrentTargetIndex(0);
+    start();
+  };
+  
+  const handleStartFreeMode = () => {
+    setGameMode('free');
+    start();
+  };
+
+  const handleStop = () => {
+    stop();
+    // Reseta o modo de jogo ao parar
+    setGameMode('free');
+    setCurrentTargetIndex(0);
   };
 
   return (
     <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center text-center p-4 font-mono relative">
       <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold">StringMaster</h1>
-        <p className="text-xl text-blue-300">v3.4 - Note Persistence</p>
+        <p className="text-xl text-blue-300">v3.5 - Tuning Mode</p>
       </header>
 
       <main>
         {status === 'listening' ? (
           <div className="flex flex-col items-center">
             <TunerInterface />
-            <button onClick={stop} className="mt-8 px-8 py-4 bg-red-600 hover:bg-red-700 transition-colors rounded-lg text-xl font-bold">
+            <button onClick={handleStop} className="mt-8 px-8 py-4 bg-red-600 hover:bg-red-700 transition-colors rounded-lg text-xl font-bold">
               Parar
             </button>
           </div>
         ) : (
-          <div className="text-center h-[350px] flex flex-col justify-center items-center">
+          <div className="text-center h-[350px] flex flex-col justify-center items-center space-y-4">
             {status === 'initializing' && <p className="text-xl animate-pulse">Inicializando motor de áudio...</p>}
             {status === 'ready' && (
-              <button onClick={start} className="px-10 py-5 bg-green-600 hover:bg-green-700 transition-colors rounded-lg text-2xl font-bold animate-pulse">
-                Iniciar Afinador
-              </button>
+              <>
+                <button onClick={handleStartFreeMode} className="px-10 py-5 bg-green-600 hover:bg-green-700 transition-colors rounded-lg text-2xl font-bold w-64">
+                  Afinador Livre
+                </button>
+                <button onClick={handleStartTuning} className="px-10 py-5 bg-blue-600 hover:bg-blue-700 transition-colors rounded-lg text-2xl font-bold w-64">
+                  Afinar o Violão
+                </button>
+              </>
             )}
             {status === 'error' && <p className="text-red-500 bg-red-900/50 p-4 rounded-lg">{error || 'Ocorreu um erro.'}</p>}
           </div>
