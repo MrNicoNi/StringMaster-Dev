@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import * as ml5 from 'ml5';
 
 const A4_FREQUENCY = 440;
@@ -6,84 +6,78 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 
 export const useCrepePitch = () => {
   const [note, setNote] = useState<{ name: string; cents: number; confidence: number; frequency: number } | null>(null);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'listening' | 'error'>('loading');
+  const [status, setStatus] = useState<'ready' | 'listening' | 'error' | 'initializing'>('ready'); // Removido 'loading'
   const [error, setError] = useState<string | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pitchRef = useRef<any>(null);
 
-  const modelReady = () => {
-    console.log('Modelo CREPE carregado.');
-    setStatus('ready');
-  };
-
   const getPitch = useCallback((err: any, result: { frequency: number, confidence: number } | undefined) => {
+    // ... (esta função permanece exatamente a mesma)
     if (err) {
       console.error(err);
       setError("Ocorreu um erro na detecção de pitch.");
       setStatus('error');
       return;
     }
-    
-    if (result && result.frequency && result.confidence > 0.85) { 
+    if (result && result.frequency && result.confidence > 0.85) {
       const { frequency, confidence } = result;
       const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
       const nearestNoteIndex = Math.round(semitonesFromA4);
       const targetFrequency = A4_FREQUENCY * Math.pow(2, nearestNoteIndex / 12);
       const cents = 1200 * Math.log2(frequency / targetFrequency);
-      
       const noteNameIndex = (nearestNoteIndex + 9 + 12) % 12;
       const octave = Math.floor((nearestNoteIndex + 9) / 12) + 4;
-      
-      setNote({
-        name: `${NOTE_NAMES[noteNameIndex]}${octave}`,
-        cents,
-        confidence,
-        frequency,
-      });
+      setNote({ name: `${NOTE_NAMES[noteNameIndex]}${octave}`, cents, confidence, frequency });
     } else {
       setNote(null);
     }
   }, []);
 
   const start = useCallback(async () => {
+    setStatus('initializing'); // Novo estado para mostrar que estamos carregando
+    setError(null);
+
     try {
-      if (!pitchRef.current || status === 'loading') {
-        return;
+      // INICIALIZAÇÃO "SOB DEMANDA"
+      if (!pitchRef.current) {
+        console.log('Inicializando modelo ml5 sob demanda...');
+        const model = await ml5.pitchDetection(
+          './model/', 
+          new (window.AudioContext || (window as any).webkitAudioContext)(),
+          undefined
+        );
+        pitchRef.current = model;
+        console.log('Modelo ml5 carregado com sucesso.');
       }
-      
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+      const audioContext = pitchRef.current.audioContext;
       await audioContext.resume();
       
-          // ... dentro da função start
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          audioContextRef.current = audioContext;
-          streamRef.current = stream;
-          
-          // VERIFICAÇÃO DE SEGURANÇA ADICIONADA
-          if (pitchRef.current && typeof pitchRef.current.listen === 'function') {
-            pitchRef.current.listen(getPitch, stream);
-            setStatus('listening');
-          } else {
-            throw new Error('Modelo de áudio (pitchRef) não está pronto ou não tem o método .listen().');
-          }
-          // ...
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
+      if (pitchRef.current && typeof pitchRef.current.listen === 'function') {
+        pitchRef.current.listen(getPitch, stream);
+        setStatus('listening');
+      } else {
+        throw new Error('Modelo de áudio (pitchRef) não está pronto ou não tem o método .listen().');
+      }
 
     } catch (err) {
-      console.error("Erro detalhado do microfone:", err);
-      
+      console.error("Erro detalhado:", err);
       if (err instanceof Error) {
-        setError(`Erro ao iniciar microfone: ${err.name}. Verifique o hardware e as permissões do sistema.`);
+        setError(`Erro ao iniciar: ${err.message}`);
       } else {
-        setError('Ocorreu um erro desconhecido ao acessar o microfone.');
+        setError('Ocorreu um erro desconhecido ao iniciar.');
       }
-      
       setStatus('error');
     }
-  }, [getPitch, status]);
+  }, [getPitch]);
 
   const stop = useCallback(() => {
+    // ... (esta função permanece exatamente a mesma)
     if (pitchRef.current) pitchRef.current.stop();
     if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
@@ -93,18 +87,7 @@ export const useCrepePitch = () => {
     setNote(null);
   }, []);
   
-  useEffect(() => {
-    try {
-      const model = ml5.pitchDetection('./model/', undefined, undefined, modelReady);
-      pitchRef.current = model;
-    } catch (e) {
-      console.error(e);
-      setError('Falha ao inicializar o motor de áudio ml5. Verifique a conexão.');
-      setStatus('error');
-    }
-
-    return () => { stop(); };
-  }, [stop]);
+  // O useEffect foi removido, pois a inicialização agora é no 'start'
 
   return { note, status, error, start, stop };
-}; 
+};
