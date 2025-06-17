@@ -12,7 +12,7 @@ export const useCrepePitch = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pitchRef = useRef<any>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null); // Referência para o nosso loop
+  const animationFrameRef = useRef<number | null>(null); // Referência para o nosso loop
 
   const start = useCallback(async () => {
     setStatus('initializing');
@@ -44,9 +44,9 @@ export const useCrepePitch = () => {
   }, []);
 
   const stop = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -61,22 +61,21 @@ export const useCrepePitch = () => {
 
   // O EFEITO QUE CRIA O LOOP DE ESCUTA
   useEffect(() => {
-    if (status === 'listening' && pitchRef.current) {
-      // Inicia o loop que pede o pitch a cada 100ms
-      intervalRef.current = setInterval(() => {
-        pitchRef.current.getPitch((err: any, frequency: number | null) => {
-          // A biblioteca CREPE retorna a frequência diretamente, e a confiança não é fornecida neste método
-          if (err) {
-            console.error(err);
-            setError("Erro na detecção de pitch.");
-            setStatus('error');
-            return;
-          }
+    const getPitchLoop = () => {
+      if (!pitchRef.current) return;
+
+      pitchRef.current.getPitch((err: any, frequency: number | null) => {
+        if (err) {
+          console.error(err);
+          return; // Continua tentando no próximo frame
+        }
+        
+        if (frequency) {
+          const confidence = 1.0; // Assumimos alta confiança com CREPE
+          const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
           
-          if (frequency) {
-            // Vamos usar uma confiança fixa de 1.0, já que CREPE é robusto
-            const confidence = 1.0; 
-            const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
+          // Filtra ruídos fora da faixa de um violão padrão
+          if (semitonesFromA4 > -29 && semitonesFromA4 < 30) { // E2 a ~C7
             const nearestNoteIndex = Math.round(semitonesFromA4);
             const targetFrequency = A4_FREQUENCY * Math.pow(2, nearestNoteIndex / 12);
             const cents = 1200 * Math.log2(frequency / targetFrequency);
@@ -86,14 +85,26 @@ export const useCrepePitch = () => {
           } else {
             setNote(null);
           }
-        });
-      }, 100); // Pede o pitch 10 vezes por segundo
+        } else {
+          setNote(null);
+        }
+        
+        // Agenda a próxima verificação
+        if (status === 'listening') {
+          animationFrameRef.current = requestAnimationFrame(getPitchLoop);
+        }
+      });
+    };
+
+    if (status === 'listening' && pitchRef.current) {
+      // Inicia o loop
+      animationFrameRef.current = requestAnimationFrame(getPitchLoop);
     }
 
-    // Função de limpeza para parar o loop quando o status muda
+    // Função de limpeza para parar o loop quando o componente for desmontado ou o status mudar
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [status]);
