@@ -72,14 +72,61 @@ function App() {
   }, [note]);
 
 
-  const TunerInterface = () => {
-    if (!note) {
-      return (
-        <div className="h-[250px] flex flex-col items-center justify-center">
-          <p className="text-2xl text-gray-400">Toque uma nota...</p>
-        </div>
-      );
+const TunerInterface = () => {
+  // Novo estado para rastrear se a nota está "travada" como afinada
+  const [isLockedIn, setIsLockedIn] = useState(false);
+  const inTuneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Limpa qualquer timeout anterior
+    if (inTuneTimeoutRef.current) {
+      clearTimeout(inTuneTimeoutRef.current);
     }
+
+    if (note && Math.abs(note.cents) < 5) {
+      // Se a nota está afinada, inicia um timer de 1 segundo
+      inTuneTimeoutRef.current = setTimeout(() => {
+        setIsLockedIn(true); // Após 1s, "trava" no estado afinado
+      }, 1000);
+    } else {
+      // Se a nota desafinou, reseta o estado imediatamente
+      setIsLockedIn(false);
+    }
+
+    // Função de limpeza
+    return () => {
+      if (inTuneTimeoutRef.current) {
+        clearTimeout(inTuneTimeoutRef.current);
+      }
+    };
+  }, [note]); // Este efeito depende da 'note'
+
+  if (!note) {
+    return (
+      <div className="h-[250px] flex flex-col items-center justify-center">
+        <p className="text-2xl text-gray-400">Toque uma nota...</p>
+      </div>
+    );
+  }
+  
+  // A condição de "afinado" agora usa nosso novo estado 'isLockedIn'
+  const isVisuallyInTune = isLockedIn || Math.abs(note.cents) < 5;
+
+  return (
+    <div className={`w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px] transition-all duration-500 ${isLockedIn ? 'ring-4 ring-green-400' : ''}`}>
+      <div className="flex items-baseline space-x-2">
+        <p className={`text-8xl font-bold transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-blue-300'} ${isLockedIn ? 'scale-110' : ''}`}>
+          {note.name.slice(0, -1)}
+        </p>
+        <p className="text-4xl text-gray-400">{note.name.slice(-1)}</p>
+      </div>
+      <p className={`text-xl font-medium transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-red-400'} ${isLockedIn ? 'scale-110' : ''}`}>
+        {note.cents.toFixed(1)} cents
+      </p>
+      <CentsMeter cents={note.cents} />
+    </div>
+  );
+};
     
     const isInTune = Math.abs(note.cents) < 5;
 
