@@ -1,11 +1,47 @@
 import { useEffect, useState, useRef } from 'react';
 import { useCrepePitch } from './useCrepePitch';
-import { lessons, Lesson, Challenge } from './lessons';
+import { lessons, Lesson } from './lessons';
 
-// ... (Tipos e componentes CentsMeter, DebugIndicator permanecem os mesmos)
+// Tipos e componentes visuais (sem alterações)
 type NoteData = { name: string; cents: number; frequency: number; confidence: number; };
-const CentsMeter = ({ cents }: { cents: number }) => { /* ...código sem alterações... */ };
-const DebugIndicator = ({ frequency, confidence }: { frequency: number, confidence: number }) => { /* ...código sem alterações... */ };
+
+const CentsMeter = ({ cents }: { cents: number }) => {
+  const [smoothedCents, setSmoothedCents] = useState(cents);
+  const animationFrameRef = useRef<number>();
+
+  useEffect(() => {
+    const smoothingFactor = 0.05;
+    const animate = () => {
+      setSmoothedCents(currentSmoothedCents => {
+        const newSmoothedCents = currentSmoothedCents + (cents - currentSmoothedCents) * smoothingFactor;
+        if (Math.abs(cents - newSmoothedCents) < 0.01) return cents;
+        return newSmoothedCents;
+      });
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    animationFrameRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [cents]);
+
+  const percentage = (smoothedCents + 50);
+  const isInTune = Math.abs(smoothedCents) < 5;
+
+  return (
+    <div className="w-full max-w-sm bg-gray-700 rounded-full h-4 my-4 relative">
+      <div className="absolute left-1/2 top-0 h-full w-1 bg-green-500 transform -translate-x-1/2"></div>
+      <div
+        className="absolute top-0 h-4 w-1 rounded-full"
+        style={{
+          left: `${percentage}%`,
+          backgroundColor: isInTune ? '#4ade80' : '#f87171',
+          transform: `translateX(-${percentage}%)`
+        }}
+      ></div>
+    </div>
+  );
+};
 
 
 // Componente para a tela de exercício
@@ -17,10 +53,8 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
   const currentChallenge = lesson.challenges[challengeIndex];
   const targetNoteName = currentChallenge?.targetNote;
 
-  // O hook agora inicia no estado 'ready'
   const { note: detectedNote, status, start, stop } = useCrepePitch(targetNoteName);
 
-  // A lógica de acerto agora depende da nota detectada
   useEffect(() => {
     if (status === 'listening' && detectedNote && detectedNote.name === targetNoteName) {
       setIsCorrect(true);
@@ -38,14 +72,10 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
     return () => { if (correctTimeoutRef.current) clearTimeout(correctTimeoutRef.current); }
   }, [detectedNote, status, challengeIndex, lesson.challenges.length, onComplete, targetNoteName]);
 
-  // Limpa o estado ao sair
   useEffect(() => {
-    return () => stop();
+    return () => { stop(); };
   }, [stop]);
 
-  if (!currentChallenge) return null;
-
-  // RENDERIZAÇÃO CONDICIONAL BASEADA NO STATUS
   if (status !== 'listening') {
     return (
       <div>
@@ -58,6 +88,8 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
       </div>
     );
   }
+
+  if (!currentChallenge) return null;
 
   return (
     <div>
@@ -77,9 +109,13 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
 
 // Componente para o Afinador Livre
 const FreeTunerScreen = ({ onExit }: { onExit: () => void }) => {
-    const { note: detectedNote, status, start } = useCrepePitch(null);
+    const { note: detectedNote, status, start, stop } = useCrepePitch(null);
     const [displayNote, setDisplayNote] = useState<NoteData | null>(null);
     const decayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+      return () => { stop(); };
+    }, [stop]);
 
     useEffect(() => {
         if (decayTimeoutRef.current) clearTimeout(decayTimeoutRef.current);
@@ -103,10 +139,13 @@ const FreeTunerScreen = ({ onExit }: { onExit: () => void }) => {
       );
     }
     
-    // ... (resto da lógica do afinador livre)
     const noteToDisplay = displayNote;
     if (!noteToDisplay) {
-        return <div className="h-[250px] flex items-center justify-center"><p className="text-2xl text-gray-400">Toque uma nota...</p></div>;
+        return (
+          <div className="h-[250px] flex items-center justify-center">
+            <p className="text-2xl text-gray-400">Toque uma nota...</p>
+          </div>
+        );
     }
     const isInTune = Math.abs(noteToDisplay.cents) < 5;
     return (
@@ -126,13 +165,28 @@ const FreeTunerScreen = ({ onExit }: { onExit: () => void }) => {
 
 
 function App() {
-  // ... (O componente App principal e seus estados permanecem os mesmos)
   const [appState, setAppState] = useState<'menu' | 'lesson' | 'tuner'>('menu');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const handleSelectLesson = (lesson: Lesson) => { setSelectedLesson(lesson); setAppState('lesson'); };
-  const handleLessonComplete = () => { alert('Parabéns, você completou a lição!'); setAppState('menu'); setSelectedLesson(null); };
-  const handleSelectTuner = () => { setAppState('tuner'); };
-  const handleExit = () => { setAppState('menu'); setSelectedLesson(null); };
+
+  const handleSelectLesson = (lesson: Lesson) => {
+    setSelectedLesson(lesson);
+    setAppState('lesson');
+  };
+  
+  const handleLessonComplete = () => {
+    alert('Parabéns, você completou a lição!');
+    setAppState('menu');
+    setSelectedLesson(null);
+  };
+  
+  const handleSelectTuner = () => {
+    setAppState('tuner');
+  };
+
+  const handleExit = () => {
+    setAppState('menu');
+    setSelectedLesson(null);
+  };
 
   return (
     <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center text-center p-4 font-mono relative">
@@ -140,10 +194,31 @@ function App() {
         <h1 className="text-4xl md:text-5xl font-bold">StringMaster</h1>
         <p className="text-xl text-blue-300">v4.2 - User Gesture</p>
       </header>
+
       <main>
-        {appState === 'menu' && ( /* ...código do menu sem alterações... */ )}
-        {appState === 'lesson' && selectedLesson && ( <ExerciseScreen lesson={selectedLesson} onComplete={handleLessonComplete} onExit={handleExit} /> )}
-        {appState === 'tuner' && ( <FreeTunerScreen onExit={handleExit} /> )}
+        {appState === 'menu' && (
+          <div className="space-y-6">
+            <div className="w-full max-w-md">
+              <h2 className="text-2xl text-blue-300 mb-4">Lições</h2>
+              <div className="space-y-4">
+                {lessons.map(lesson => (
+                  <button key={lesson.id} onClick={() => handleSelectLesson(lesson)} className="w-full px-6 py-4 bg-gray-800 hover:bg-gray-700 text-white text-xl rounded-lg transition-colors">
+                    {lesson.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={handleSelectTuner} className="px-10 py-3 bg-gray-600 hover:bg-gray-500 rounded-lg text-lg">Usar Afinador Livre</button>
+          </div>
+        )}
+
+        {appState === 'lesson' && selectedLesson && (
+          <ExerciseScreen lesson={selectedLesson} onComplete={handleLessonComplete} onExit={handleExit} />
+        )}
+        
+        {appState === 'tuner' && (
+          <FreeTunerScreen onExit={handleExit} />
+        )}
       </main>
     </div>
   );
