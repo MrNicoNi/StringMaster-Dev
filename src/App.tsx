@@ -27,11 +27,55 @@ function App() {
   const { note, status, error, start, stop } = useCrepePitch();
 
   const TunerInterface = () => {
-    if (!note) {
-      return <div className="h-[250px] flex items-center justify-center"><p className="text-2xl text-gray-400">Toque uma nota...</p></div>;
+  // Adicionamos um pequeno estado local para o feedback bruto
+  const [rawValues, setRawValues] = useState({ freq: 0, conf: 0 });
+
+  // Este efeito vai escutar as mudanças na 'note'
+  // e atualizar nosso feedback visual.
+  useEffect(() => {
+    if (note) {
+      setRawValues({ freq: note.frequency, conf: note.confidence });
     }
-    
-    const isInTune = Math.abs(note.cents) < 5;
+  }, [note]);
+
+
+  if (!note) {
+    return (
+      <div className="h-[250px] flex flex-col items-center justify-center">
+        <p className="text-2xl text-gray-400">Toque uma nota...</p>
+        {/* Nosso novo indicador de depuração */}
+        <div className="mt-4 text-xs text-gray-500">
+          <span>Freq: {rawValues.freq.toFixed(2)} Hz</span>
+          <span className="ml-4">Conf: {rawValues.conf.toFixed(2)}</span>
+        </div>
+      </div>
+    );
+  }
+  
+  const isInTune = Math.abs(note.cents) < 5;
+
+  return (
+    <div className="w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px]">
+      {/* ... O resto da interface do afinador permanece o mesmo ... */}
+      <div className="flex items-baseline space-x-2">
+        <p className={`text-8xl font-bold transition-colors duration-200 ${isInTune ? 'text-green-400' : 'text-blue-300'}`}>
+          {note.name.slice(0, -1)}
+        </p>
+        <p className="text-4xl text-gray-400">{note.name.slice(-1)}</p>
+      </div>
+      <p className={`text-xl font-medium ${isInTune ? 'text-green-400' : 'text-red-400'}`}>
+        {note.cents.toFixed(1)} cents
+      </p>
+      <CentsMeter cents={note.cents} />
+
+      {/* Nosso novo indicador de depuração */}
+      <div className="mt-2 text-xs text-gray-500">
+        <span>Freq: {note.frequency.toFixed(2)} Hz</span>
+        <span className="ml-4">Conf: {note.confidence.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+};
 
     return (
       <div className="w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px]">
