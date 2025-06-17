@@ -23,10 +23,15 @@ export const lessons: Lesson[] = [
       { id: 'l1c6', instruction: 'Toque a 6ª corda (Mi grave)', targetNote: 'E2' },
     ],
   },
-  // Futuramente, poderíamos adicionar mais lições aqui
-  // {
-  //   id: 'lesson-2',
-  //   title: 'Escala de Dó Maior',
-  //   challenges: [ ... ]
-  // }
+  // NOVA LIÇÃO ADICIONADA
+  {
+    id: 'lesson-2',
+    title: 'Mão Esquerda: Exercício Cromático',
+    challenges: [
+      { id: 'l2c1', instruction: '6ª corda, 1ª casa (Dedo 1)', targetNote: 'F2' },
+      { id: 'l2c2', instruction: '6ª corda, 2ª casa (Dedo 2)', targetNote: 'F#2' },
+      { id: 'l2c3', instruction: '6ª corda, 3ª casa (Dedo 3)', targetNote: 'G2' },
+      { id: 'l2c4', instruction: '6ª corda, 4ª casa (Dedo 4)', targetNote: 'G#2' },
+    ],
+  },
 ];
