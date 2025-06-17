@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useCrepePitch } from './useCrepePitch';
 import { lessons, Lesson } from './lessons';
 import { getCompletedLessons, markLessonAsComplete } from './progressService';
+import { Fretboard } from './Fretboard'; // Importa o novo componente
 
 // TIPO DE DADOS DA NOTA
 type NoteData = { name: string; cents: number; frequency: number; confidence: number; };
@@ -45,6 +46,16 @@ const CentsMeter = ({ cents }: { cents: number }) => {
   );
 };
 
+// COMPONENTE VISUAL: INDICADOR DE DEBUG
+const DebugIndicator = ({ frequency, confidence }: { frequency: number, confidence: number }) => {
+  return (
+    <div className="absolute bottom-4 right-4 text-xs text-gray-600 bg-gray-800 p-2 rounded">
+      <span>Freq: {frequency.toFixed(2)} Hz</span>
+      <span className="ml-4">Conf: {confidence.toFixed(2)}</span>
+    </div>
+  );
+};
+
 // COMPONENTE DE TELA: EXERCÍCIO
 const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComplete: () => void, onExit: () => void }) => {
   const [challengeIndex, setChallengeIndex] = useState(0);
@@ -82,7 +93,7 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
 
   if (isCompleted) {
     return (
-      <div className="w-full max-w-md p-8 rounded-xl bg-green-900/50 ring-4 ring-green-400">
+      <div className="w-full max-w-xl p-8 rounded-xl bg-green-900/50 ring-4 ring-green-400">
         <div className="text-center">
           <p className="text-white text-4xl font-bold my-4 animate-pulse">Lição Concluída! 🎉</p>
         </div>
@@ -93,7 +104,7 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
   if (status !== 'listening') {
     return (
       <div>
-        <div className="w-full max-w-md p-8 rounded-xl bg-gray-800 text-center">
+        <div className="w-full max-w-xl p-8 rounded-xl bg-gray-800 text-center">
           <p className="text-gray-400 text-lg">Lição: {lesson.title}</p>
           <p className="text-white text-3xl font-bold my-4">Pronto para começar?</p>
           <button onClick={start} className="mt-4 px-10 py-5 bg-green-600 hover:bg-green-700 rounded-lg text-2xl">Começar</button>
@@ -107,10 +118,16 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
 
   return (
     <div>
-      <div className={`w-full max-w-md p-8 rounded-xl transition-all duration-500 ${isCorrect ? 'bg-green-900/50 ring-4 ring-green-400' : 'bg-gray-800'}`}>
+      <div className={`w-full max-w-xl p-8 rounded-xl transition-all duration-500 ${isCorrect ? 'bg-green-900/50' : 'bg-gray-800'}`}>
         <div className="text-center">
           <p className="text-gray-400 text-lg">Lição: {lesson.title}</p>
           <p className="text-white text-3xl font-bold my-4">{currentChallenge.instruction}</p>
+          
+          <Fretboard 
+            highlightString={currentChallenge.string}
+            highlightFret={currentChallenge.fret}
+          />
+
           <div className="h-16 mt-4">
             {isCorrect && <p className="text-green-400 text-4xl animate-pulse">Correto!</p>}
           </div>
@@ -126,6 +143,7 @@ const FreeTunerScreen = ({ onExit }: { onExit: () => void }) => {
     const { note: detectedNote, status, start, stop } = useCrepePitch(null);
     const [displayNote, setDisplayNote] = useState<NoteData | null>(null);
     const decayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [rawValues, setRawValues] = useState({ freq: 0, conf: 0 });
 
     useEffect(() => { return () => { stop(); }; }, [stop]);
 
@@ -133,8 +151,10 @@ const FreeTunerScreen = ({ onExit }: { onExit: () => void }) => {
         if (decayTimeoutRef.current) clearTimeout(decayTimeoutRef.current);
         if (detectedNote) {
             setDisplayNote(detectedNote);
+            setRawValues({ freq: detectedNote.frequency, conf: detectedNote.confidence });
         } else {
             decayTimeoutRef.current = setTimeout(() => setDisplayNote(null), 750);
+            setRawValues(prev => ({ freq: prev.freq, conf: 0 }));
         }
         return () => { if (decayTimeoutRef.current) clearTimeout(decayTimeoutRef.current); };
     }, [detectedNote]);
@@ -153,7 +173,7 @@ const FreeTunerScreen = ({ onExit }: { onExit: () => void }) => {
     
     return (
         <div className="relative">
-            <div className={`w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px]`}>
+            <div className={`w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[300px]`}>
                 {!displayNote ? (
                     <p className="text-2xl text-gray-400">Toque uma nota...</p>
                 ) : (
@@ -168,6 +188,7 @@ const FreeTunerScreen = ({ onExit }: { onExit: () => void }) => {
                 )}
             </div>
             <button onClick={onExit} className="mt-8 px-8 py-4 bg-red-600 hover:bg-red-700 rounded-lg text-xl">Voltar ao Menu</button>
+            <DebugIndicator frequency={rawValues.freq} confidence={rawValues.conf} />
         </div>
     );
 };
@@ -209,7 +230,7 @@ function App() {
     <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center text-center p-4 font-mono relative">
       <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold">StringMaster</h1>
-        <p className="text-xl text-blue-300">v4.5 - Progress Tracking</p>
+        <p className="text-xl text-blue-300">v5.0 - Fretboard UI</p>
       </header>
 
       <main>
