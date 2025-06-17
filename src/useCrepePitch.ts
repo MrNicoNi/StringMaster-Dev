@@ -12,7 +12,7 @@ export const useCrepePitch = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pitchRef = useRef<any>(null);
-  const animationFrameRef = useRef<number | null>(null); // Referência para o nosso loop
+  const animationFrameRef = useRef<number | null>(null);
 
   const start = useCallback(async () => {
     setStatus('initializing');
@@ -59,7 +59,6 @@ export const useCrepePitch = () => {
     setNote(null);
   }, []);
 
-  // O EFEITO QUE CRIA O LOOP DE ESCUTA
   useEffect(() => {
     const getPitchLoop = () => {
       if (!pitchRef.current) return;
@@ -67,19 +66,21 @@ export const useCrepePitch = () => {
       pitchRef.current.getPitch((err: any, frequency: number | null) => {
         if (err) {
           console.error(err);
-          return; // Continua tentando no próximo frame
+          return;
         }
         
         if (frequency) {
-          const confidence = 1.0; // Assumimos alta confiança com CREPE
+          const confidence = 1.0;
           const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
           
-          // Filtra ruídos fora da faixa de um violão padrão
-          if (semitonesFromA4 > -29 && semitonesFromA4 < 30) { // E2 a ~C7
+          if (semitonesFromA4 > -29 && semitonesFromA4 < 30) {
             const nearestNoteIndex = Math.round(semitonesFromA4);
             const targetFrequency = A4_FREQUENCY * Math.pow(2, nearestNoteIndex / 12);
             const cents = 1200 * Math.log2(frequency / targetFrequency);
-            const noteNameIndex = (nearestNoteIndex + 9 + 12) % 12;
+            
+            // A CORREÇÃO ESTÁ AQUI
+            const noteNameIndex = (((nearestNoteIndex + 9) % 12) + 12) % 12;
+            
             const octave = Math.floor((nearestNoteIndex + 9) / 12) + 4;
             setNote({ name: `${NOTE_NAMES[noteNameIndex]}${octave}`, cents, confidence, frequency });
           } else {
@@ -89,7 +90,6 @@ export const useCrepePitch = () => {
           setNote(null);
         }
         
-        // Agenda a próxima verificação
         if (status === 'listening') {
           animationFrameRef.current = requestAnimationFrame(getPitchLoop);
         }
@@ -97,11 +97,9 @@ export const useCrepePitch = () => {
     };
 
     if (status === 'listening' && pitchRef.current) {
-      // Inicia o loop
       animationFrameRef.current = requestAnimationFrame(getPitchLoop);
     }
 
-    // Função de limpeza para parar o loop quando o componente for desmontado ou o status mudar
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
