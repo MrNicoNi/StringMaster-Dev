@@ -1,13 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import * as ml5 from 'ml5';
 
+// ... (constantes e tipos permanecem os mesmos)
 const A4_FREQUENCY = 440;
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-export type TargetNote = {
-  name: string;
-  freq: number;
-};
+export type TargetNote = { name: string; freq: number; };
 
 export const useCrepePitch = (targetNoteName: string | null = null) => {
   const [note, setNote] = useState<{ name: string; cents: number; confidence: number; frequency: number } | null>(null);
@@ -20,6 +17,7 @@ export const useCrepePitch = (targetNoteName: string | null = null) => {
   const animationFrameRef = useRef<number | null>(null);
 
   const start = useCallback(async () => {
+    // ... (função start permanece a mesma)
     if (status === 'listening' || status === 'initializing') return;
     setStatus('initializing');
     setError(null);
@@ -44,63 +42,56 @@ export const useCrepePitch = (targetNoteName: string | null = null) => {
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     animationFrameRef.current = null;
     if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+    
+    // A VERIFICAÇÃO DE SEGURANÇA ESTÁ AQUI
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close();
     }
+    
     pitchRef.current = null;
+    audioContextRef.current = null;
+    streamRef.current = null;
     setStatus('ready');
     setNote(null);
   }, []);
 
   useEffect(() => {
+    // ... (o useEffect do loop de escuta permanece o mesmo)
     const getPitchLoop = () => {
       if (!pitchRef.current) return;
-
       pitchRef.current.getPitch((err: any, frequency: number | null) => {
-        if (err || !frequency) {
-          setNote(null);
-        } else {
+        if (err || !frequency) { setNote(null); }
+        else {
           const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
           const nearestNoteIndex = Math.round(semitonesFromA4);
           const noteNameIndex = (((nearestNoteIndex + 9) % 12) + 12) % 12;
           const octave = Math.floor((nearestNoteIndex + 9) / 12) + 4;
           const currentNoteName = `${NOTE_NAMES[noteNameIndex]}${octave}`;
-
-          if (targetNoteName && currentNoteName !== targetNoteName) {
-            setNote(null);
-          } else {
+          if (targetNoteName && currentNoteName !== targetNoteName) { setNote(null); }
+          else {
             const targetFrequency = A4_FREQUENCY * Math.pow(2, nearestNoteIndex / 12);
             const cents = 1200 * Math.log2(frequency / targetFrequency);
             setNote({ name: currentNoteName, cents, confidence: 1.0, frequency });
           }
         }
-        
-        // Garante que o loop continue apenas se ainda estivermos no estado 'listening'
-        if (animationFrameRef.current) {
-          animationFrameRef.current = requestAnimationFrame(getPitchLoop);
-        }
+        if (animationFrameRef.current) { animationFrameRef.current = requestAnimationFrame(getPitchLoop); }
       });
     };
-
     if (status === 'listening' && pitchRef.current) {
-      // Inicia o loop
       animationFrameRef.current = requestAnimationFrame(getPitchLoop);
     } else {
-      // Garante que o loop pare se o status não for mais 'listening'
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
     }
-
-    // Função de limpeza para parar o loop quando o componente for desmontado
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
     };
-  }, [status, targetNoteName]); // O efeito agora também depende da 'targetNoteName'
+  }, [status, targetNoteName]);
 
   return { note, status, error, start, stop };
 };
