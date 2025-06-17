@@ -44,17 +44,7 @@ const CentsMeter = ({ cents }: { cents: number }) => {
   );
 };
 
-// COMPONENTE VISUAL: INDICADOR DE DEBUG
-const DebugIndicator = ({ frequency, confidence }: { frequency: number, confidence: number }) => {
-  return (
-    <div className="absolute bottom-4 right-4 text-xs text-gray-600 bg-gray-800 p-2 rounded">
-      <span>Freq: {frequency.toFixed(2)} Hz</span>
-      <span className="ml-4">Conf: {confidence.toFixed(2)}</span>
-    </div>
-  );
-};
-
-// COMPONENTE DE TELA: EXERCÍCIO
+// COMPONENTE DE TELA: EXERCÍCIO (COM LÓGICA DE AVANÇO CORRIGIDA)
 const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComplete: () => void, onExit: () => void }) => {
   const [challengeIndex, setChallengeIndex] = useState(0);
   const [isCorrect, setIsCorrect] = useState(false);
@@ -67,26 +57,32 @@ const ExerciseScreen = ({ lesson, onComplete, onExit }: { lesson: Lesson, onComp
   const { note: detectedNote, status, start, stop } = useCrepePitch(targetNoteName);
 
   useEffect(() => {
-    if (status === 'listening' && detectedNote && detectedNote.name === targetNoteName) {
+    // A lógica de acerto só é avaliada se ainda não tivermos um acerto registrado para este desafio
+    if (!isCorrect && status === 'listening' && detectedNote && detectedNote.name === targetNoteName) {
+      // Trava o estado de acerto para não ser desfeito por um flicker de sinal
       setIsCorrect(true);
-      if (correctTimeoutRef.current) clearTimeout(correctTimeoutRef.current);
       
+      // Agenda o avanço para o próximo desafio
       correctTimeoutRef.current = setTimeout(() => {
         const nextIndex = challengeIndex + 1;
         if (nextIndex < lesson.challenges.length) {
           setChallengeIndex(nextIndex);
-          setIsCorrect(false);
+          setIsCorrect(false); // Reseta o 'isCorrect' para o novo desafio
         } else {
           setIsCompleted(true);
+          // Mostra a tela de sucesso por 2 segundos antes de sair
           setTimeout(onComplete, 2000);
         }
       }, 1200);
     }
-    return () => { if (correctTimeoutRef.current) clearTimeout(correctTimeoutRef.current); }
-  }, [detectedNote, status, challengeIndex, lesson.challenges.length, onComplete, targetNoteName]);
+  }, [detectedNote, status, challengeIndex, isCorrect, lesson.challenges.length, onComplete, targetNoteName]);
 
+  // Efeito para garantir que o microfone pare quando o componente for desmontado
   useEffect(() => {
-    return () => { stop(); };
+    return () => { 
+      if (correctTimeoutRef.current) clearTimeout(correctTimeoutRef.current);
+      stop(); 
+    };
   }, [stop]);
 
   if (isCompleted) {
@@ -196,7 +192,6 @@ function App() {
   };
   
   const handleLessonComplete = () => {
-    // A tela de "Parabéns" já foi mostrada, agora só voltamos ao menu.
     setAppState('menu');
     setSelectedLesson(null);
   };
@@ -214,7 +209,7 @@ function App() {
     <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center text-center p-4 font-mono relative">
       <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold">StringMaster</h1>
-        <p className="text-xl text-blue-300">v4.3 - Stable Lesson Engine</p>
+        <p className="text-xl text-blue-300">v4.4 - Stable Lesson Flow</p>
       </header>
 
       <main>
