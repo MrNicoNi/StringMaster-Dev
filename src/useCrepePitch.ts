@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import * as ml5 from 'ml5';
 
 const A4_FREQUENCY = 440;
@@ -12,59 +12,25 @@ export const useCrepePitch = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pitchRef = useRef<any>(null);
-
-  const getPitch = useCallback((err: any, result: { frequency: number, confidence: number } | undefined) => {
-    if (err) {
-      console.error(err);
-      setError("Ocorreu um erro na detecção de pitch.");
-      setStatus('error');
-      return;
-    }
-    if (result && result.frequency && result.confidence > 0.85) {
-      const { frequency, confidence } = result;
-      const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
-      const nearestNoteIndex = Math.round(semitonesFromA4);
-      const targetFrequency = A4_FREQUENCY * Math.pow(2, nearestNoteIndex / 12);
-      const cents = 1200 * Math.log2(frequency / targetFrequency);
-      const noteNameIndex = (nearestNoteIndex + 9 + 12) % 12;
-      const octave = Math.floor((nearestNoteIndex + 9) / 12) + 4;
-      setNote({ name: `${NOTE_NAMES[noteNameIndex]}${octave}`, cents, confidence, frequency });
-    } else {
-      setNote(null);
-    }
-  }, []);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null); // Referência para o nosso loop
 
   const start = useCallback(async () => {
     setStatus('initializing');
     setError(null);
 
     try {
-      // Passo 1: Obter o stream do microfone PRIMEIRO.
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      // Passo 2: Criar o AudioContext.
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      audioContextRef.current = audioContext;
       await audioContext.resume();
-
-      // Passo 3: Inicializar o modelo PASSANDO o stream para ele.
-      // A função de callback 'modelReady' será chamada quando o modelo carregar.
-      const model = await ml5.pitchDetection(
-        './model/',
-        audioContext,
-        stream,
-        () => {
-          // Passo 4: SOMENTE APÓS o modelo estar pronto, chame .listen()
-          if (pitchRef.current && typeof pitchRef.current.getPitch === 'function') {
-            pitchRef.current.getPitch(getPitch);
-            setStatus('listening');
-          } else {
-            throw new Error('Modelo carregado, mas o método .getPitch() não foi encontrado.');
-          }
-        }
-      );
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      const model = await ml5.pitchDetection('./model/', audioContext, stream);
+      
+      audioContextRef.current = audioContext;
+      streamRef.current = stream;
       pitchRef.current = model;
+      
+      setStatus('listening');
 
     } catch (err) {
       console.error("Erro detalhado:", err);
@@ -75,12 +41,12 @@ export const useCrepePitch = () => {
       }
       setStatus('error');
     }
-  }, [getPitch]);
+  }, []);
 
   const stop = useCallback(() => {
-    if (pitchRef.current) {
-        // A biblioteca ml5 não tem um método .stop() explícito para pitchDetection
-        // A parada é feita fechando o stream e o audio context
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -92,6 +58,45 @@ export const useCrepePitch = () => {
     setStatus('ready');
     setNote(null);
   }, []);
+
+  // O EFEITO QUE CRIA O LOOP DE ESCUTA
+  useEffect(() => {
+    if (status === 'listening' && pitchRef.current) {
+      // Inicia o loop que pede o pitch a cada 100ms
+      intervalRef.current = setInterval(() => {
+        pitchRef.current.getPitch((err: any, frequency: number | null) => {
+          // A biblioteca CREPE retorna a frequência diretamente, e a confiança não é fornecida neste método
+          if (err) {
+            console.error(err);
+            setError("Erro na detecção de pitch.");
+            setStatus('error');
+            return;
+          }
+          
+          if (frequency) {
+            // Vamos usar uma confiança fixa de 1.0, já que CREPE é robusto
+            const confidence = 1.0; 
+            const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
+            const nearestNoteIndex = Math.round(semitonesFromA4);
+            const targetFrequency = A4_FREQUENCY * Math.pow(2, nearestNoteIndex / 12);
+            const cents = 1200 * Math.log2(frequency / targetFrequency);
+            const noteNameIndex = (nearestNoteIndex + 9 + 12) % 12;
+            const octave = Math.floor((nearestNoteIndex + 9) / 12) + 4;
+            setNote({ name: `${NOTE_NAMES[noteNameIndex]}${octave}`, cents, confidence, frequency });
+          } else {
+            setNote(null);
+          }
+        });
+      }, 100); // Pede o pitch 10 vezes por segundo
+    }
+
+    // Função de limpeza para parar o loop quando o status muda
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [status]);
 
   return { note, status, error, start, stop };
 };
