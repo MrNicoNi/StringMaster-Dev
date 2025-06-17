@@ -123,3 +123,66 @@ export const lessons: Lesson[] = [
     ],
   },
 ];
+
+
+ {
+    id: 'lesson-10',
+    title: 'Pentatônica Em: Desenho 1 (Casa 0)',
+    challenges: [
+      { id: 'l10c1', instruction: '6ª corda, solta', targetNote: 'E2', string: 6, fret: 0 },
+      { id: 'l10c2', instruction: '6ª corda, 3ª casa', targetNote: 'G2', string: 6, fret: 3 },
+      { id: 'l10c3', instruction: '5ª corda, solta', targetNote: 'A2', string: 5, fret: 0 },
+      { id: 'l10c4', instruction: '5ª corda, 2ª casa', targetNote: 'B2', string: 5, fret: 2 },
+      { id: 'l10c5', instruction: '4ª corda, solta', targetNote: 'D3', string: 4, fret: 0 },
+      { id: 'l10c6', instruction: '4ª corda, 2ª casa', targetNote: 'E3', string: 4, fret: 2 },
+    ],
+  },
+  {
+    id: 'lesson-11',
+    title: 'Pentatônica Em: Desenho 2 (Casa 3)',
+    challenges: [
+      { id: 'l11c1', instruction: '6ª corda, 3ª casa', targetNote: 'G2', string: 6, fret: 3 },
+      { id: 'l11c2', instruction: '6ª corda, 5ª casa', targetNote: 'A2', string: 6, fret: 5 },
+      { id: 'l11c3', instruction: '5ª corda, 2ª casa', targetNote: 'B2', string: 5, fret: 2 },
+      { id: 'l11c4', instruction: '5ª corda, 5ª casa', targetNote: 'D3', string: 5, fret: 5 },
+      { id: 'l11c5', instruction: '4ª corda, 2ª casa', targetNote: 'E3', string: 4, fret: 2 },
+      { id: 'l11c6', instruction: '4ª corda, 5ª casa', targetNote: 'G3', string: 4, fret: 5 },
+    ],
+  },
+  {
+    id: 'lesson-12',
+    title: 'Pentatônica Em: Desenho 3 (Casa 5)',
+    challenges: [
+      { id: 'l12c1', instruction: '6ª corda, 5ª casa', targetNote: 'A2', string: 6, fret: 5 },
+      { id: 'l12c2', instruction: '6ª corda, 7ª casa', targetNote: 'B2', string: 6, fret: 7 },
+      { id: 'l12c3', instruction: '5ª corda, 5ª casa', targetNote: 'D3', string: 5, fret: 5 },
+      { id: 'l12c4', instruction: '5ª corda, 7ª casa', targetNote: 'E3', string: 5, fret: 7 },
+      { id: 'l12c5', instruction: '4ª corda, 5ª casa', targetNote: 'G3', string: 4, fret: 5 },
+      { id: 'l12c6', instruction: '4ª corda, 7ª casa', targetNote: 'A3', string: 4, fret: 7 },
+    ],
+  },
+  {
+    id: 'lesson-13',
+    title: 'Pentatônica Em: Desenho 4 (Casa 7)',
+    challenges: [
+      { id: 'l13c1', instruction: '6ª corda, 7ª casa', targetNote: 'B2', string: 6, fret: 7 },
+      { id: 'l13c2', instruction: '6ª corda, 10ª casa', targetNote: 'D3', string: 6, fret: 10 },
+      { id: 'l13c3', instruction: '5ª corda, 7ª casa', targetNote: 'E3', string: 5, fret: 7 },
+      { id: 'l13c4', instruction: '5ª corda, 9ª casa', targetNote: 'F#3', string: 5, fret: 9 }, // Nota fora da penta, mas comum em blues
+      { id: 'l13c5', instruction: '4ª corda, 7ª casa', targetNote: 'A3', string: 4, fret: 7 },
+      { id: 'l13c6', instruction: '4ª corda, 9ª casa', targetNote: 'B3', string: 4, fret: 9 },
+    ],
+  },
+  {
+    id: 'lesson-14',
+    title: 'Pentatônica Em: Desenho 5 (Casa 10)',
+    challenges: [
+      { id: 'l14c1', instruction: '6ª corda, 10ª casa', targetNote: 'D3', string: 6, fret: 10 },
+      { id: 'l14c2', instruction: '6ª corda, 12ª casa', targetNote: 'E3', string: 6, fret: 12 },
+      { id: 'l14c3', instruction: '5ª corda, 10ª casa', targetNote: 'G3', string: 5, fret: 10 },
+      { id: 'l14c4', instruction: '5ª corda, 12ª casa', targetNote: 'A3', string: 5, fret: 12 },
+      { id: 'l14c5', instruction: '4ª corda, 9ª casa', targetNote: 'B3', string: 4, fret: 9 },
+      { id: 'l14c6', instruction: '4ª corda, 12ª casa', targetNote: 'D4', string: 4, fret: 12 },
+    ],
+  },
+];
