@@ -7,34 +7,28 @@ const CentsMeter = ({ cents }: { cents: number }) => {
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    // Fator de suavização (0.1 = 10% do caminho a cada frame)
     const smoothingFactor = 0.1;
 
     const animate = () => {
       setSmoothedCents(currentSmoothedCents => {
-        // Interpolação Linear (Lerp)
         const newSmoothedCents = currentSmoothedCents + (cents - currentSmoothedCents) * smoothingFactor;
-        
-        // Se estivermos muito perto, apenas salta para o valor final para evitar trepidação infinita
         if (Math.abs(cents - newSmoothedCents) < 0.01) {
           return cents;
         }
-        
         return newSmoothedCents;
       });
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    // Inicia a animação
     animationFrameRef.current = requestAnimationFrame(animate);
 
-    // Função de limpeza para parar a animação quando o componente for desmontado ou 'cents' mudar
     return () => {
       if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrame-ref.current);
+        // A CORREÇÃO ESTÁ AQUI
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [cents]); // Este efeito re-executa sempre que o 'cents' alvo muda
+  }, [cents]);
 
   const percentage = (smoothedCents + 50);
   const isInTune = Math.abs(smoothedCents) < 5;
@@ -43,7 +37,7 @@ const CentsMeter = ({ cents }: { cents: number }) => {
     <div className="w-full max-w-sm bg-gray-700 rounded-full h-4 my-4 relative">
       <div className="absolute left-1/2 top-0 h-full w-1 bg-green-500 transform -translate-x-1/2"></div>
       <div
-        className="absolute top-0 h-4 w-1 rounded-full" // A transição CSS não é mais necessária
+        className="absolute top-0 h-4 w-1 rounded-full"
         style={{
           left: `${percentage}%`,
           backgroundColor: isInTune ? '#4ade80' : '#f87171',
@@ -53,8 +47,6 @@ const CentsMeter = ({ cents }: { cents: number }) => {
     </div>
   );
 };
-
-// ... (O resto do arquivo App.tsx, DebugIndicator, etc., permanece o mesmo)
 
 const DebugIndicator = ({ frequency, confidence }: { frequency: number, confidence: number }) => {
   return (
@@ -71,8 +63,11 @@ function App() {
   const [rawValues, setRawValues] = useState({ freq: 0, conf: 0 });
 
   useEffect(() => {
+    // Agora o 'rawValues' sempre reflete a última nota, ou zera se não houver nota.
     if (note) {
       setRawValues({ freq: note.frequency, conf: note.confidence });
+    } else {
+      setRawValues(prev => ({ freq: prev.freq, conf: 0 })); // Mantém a última frequência, mas zera a confiança
     }
   }, [note]);
 
