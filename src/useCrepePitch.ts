@@ -56,12 +56,19 @@ export const useCrepePitch = () => {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       await audioContext.resume();
       
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioContextRef.current = audioContext;
-      streamRef.current = stream;
-      
-      pitchRef.current.listen(getPitch, stream);
-      setStatus('listening');
+          // ... dentro da função start
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioContextRef.current = audioContext;
+          streamRef.current = stream;
+          
+          // VERIFICAÇÃO DE SEGURANÇA ADICIONADA
+          if (pitchRef.current && typeof pitchRef.current.listen === 'function') {
+            pitchRef.current.listen(getPitch, stream);
+            setStatus('listening');
+          } else {
+            throw new Error('Modelo de áudio (pitchRef) não está pronto ou não tem o método .listen().');
+          }
+          // ...
 
     } catch (err) {
       console.error("Erro detalhado do microfone:", err);
