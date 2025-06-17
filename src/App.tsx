@@ -7,7 +7,7 @@ const CentsMeter = ({ cents }: { cents: number }) => {
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    const smoothingFactor = 0.1;
+    const smoothingFactor = 0.05;
 
     const animate = () => {
       setSmoothedCents(currentSmoothedCents => {
