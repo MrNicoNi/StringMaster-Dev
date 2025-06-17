@@ -2,9 +2,8 @@ export type Challenge = {
   id: string;
   instruction: string;
   targetNote: string;
-  // NOVOS DADOS:
-  string: number; // 1 (mais fina) a 6 (mais grossa)
-  fret: number;   // 0 para corda solta
+  string: number;
+  fret: number;
 };
 
 export type Lesson = {
@@ -34,6 +33,31 @@ export const lessons: Lesson[] = [
       { id: 'l2c2', instruction: '6ª corda, 2ª casa (Dedo 2)', targetNote: 'F#2', string: 6, fret: 2 },
       { id: 'l2c3', instruction: '6ª corda, 3ª casa (Dedo 3)', targetNote: 'G2', string: 6, fret: 3 },
       { id: 'l2c4', instruction: '6ª corda, 4ª casa (Dedo 4)', targetNote: 'G#2', string: 6, fret: 4 },
+    ],
+  },
+  {
+    id: 'lesson-3',
+    title: 'Mão Esquerda: Independência (Aranha)',
+    challenges: [
+      { id: 'l3c1', instruction: '6ª corda, 1ª casa (Dedo 1)', targetNote: 'F2', string: 6, fret: 1 },
+      { id: 'l3c2', instruction: '5ª corda, 3ª casa (Dedo 3)', targetNote: 'C3', string: 5, fret: 3 },
+      { id: 'l3c3', instruction: '6ª corda, 2ª casa (Dedo 2)', targetNote: 'F#2', string: 6, fret: 2 },
+      { id: 'l3c4', instruction: '5ª corda, 4ª casa (Dedo 4)', targetNote: 'C#3', string: 5, fret: 4 },
+    ],
+  },
+  // NOVA LIÇÃO ADICIONADA
+  {
+    id: 'lesson-4',
+    title: 'Primeiros Acordes: Mi menor (Em)',
+    challenges: [
+      { id: 'l4c1', instruction: 'Posicione o Dedo 2 na 5ª corda, 2ª casa. Toque-a.', targetNote: 'B2', string: 5, fret: 2 },
+      { id: 'l4c2', instruction: 'Mantenha o Dedo 2 e posicione o Dedo 3 na 4ª corda, 2ª casa. Toque-a.', targetNote: 'E3', string: 4, fret: 2 },
+      { id: 'l4c3', instruction: 'Ótimo! Agora toque o arpejo completo, começando pela 6ª corda.', targetNote: 'E2', string: 6, fret: 0 },
+      { id: 'l4c4', instruction: 'Arpejo Em: 5ª corda', targetNote: 'B2', string: 5, fret: 2 },
+      { id: 'l4c5', instruction: 'Arpejo Em: 4ª corda', targetNote: 'E3', string: 4, fret: 2 },
+      { id: 'l4c6', instruction: 'Arpejo Em: 3ª corda', targetNote: 'G3', string: 3, fret: 0 },
+      { id: 'l4c7', instruction: 'Arpejo Em: 2ª corda', targetNote: 'B3', string: 2, fret: 0 },
+      { id: 'l4c8', instruction: 'Arpejo Em: 1ª corda', targetNote: 'E4', string: 1, fret: 0 },
     ],
   },
 ];
