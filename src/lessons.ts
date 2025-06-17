@@ -58,6 +58,17 @@ export const lessons: Lesson[] = [
       { id: 'l4c6', instruction: 'Arpejo Em: 3ª corda', targetNote: 'G3', string: 3, fret: 0 },
       { id: 'l4c7', instruction: 'Arpejo Em: 2ª corda', targetNote: 'B3', string: 2, fret: 0 },
       { id: 'l4c8', instruction: 'Arpejo Em: 1ª corda', targetNote: 'E4', string: 1, fret: 0 },
+ {
+    id: 'lesson-5',
+    title: 'Acordes Essenciais: Dó Maior (C)',
+    challenges: [
+      { id: 'l5c1', instruction: 'Posicione o Dedo 1 na 2ª corda, 1ª casa. Toque-a.', targetNote: 'C4', string: 2, fret: 1 },
+      { id: 'l5c2', instruction: 'Adicione o Dedo 2 na 4ª corda, 2ª casa. Toque-a.', targetNote: 'E3', string: 4, fret: 2 },
+      { id: 'l5c3', instruction: 'Adicione o Dedo 3 na 5ª corda, 3ª casa. Toque-a.', targetNote: 'C3', string: 5, fret: 3 },
+      { id: 'l5c4', instruction: 'Shape montado! Agora, o arpejo, começando da 5ª corda.', targetNote: 'C3', string: 5, fret: 3 },
+      { id: 'l5c5', instruction: 'Arpejo C: 4ª corda', targetNote: 'E3', string: 4, fret: 2 },
+      { id: 'l5c6', instruction: 'Arpejo C: 3ª corda (solta)', targetNote: 'G3', string: 3, fret: 0 },
+      { id: 'l5c7', instruction: 'Arpejo C: 2ª corda', targetNote: 'C4', string: 2, fret: 1 },
+      { id: 'l5c8', instruction: 'Arpejo C: 1ª corda (solta)', targetNote: 'E4', string: 1, fret: 0 },
     ],
   },
-];
