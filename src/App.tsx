@@ -1,32 +1,24 @@
 import { useEffect, useState, useRef } from 'react';
 import { useCrepePitch } from './useCrepePitch';
 
-// Componente visual para o medidor de afinação com suavização (Lerp)
+// CentsMeter e DebugIndicator permanecem os mesmos
 const CentsMeter = ({ cents }: { cents: number }) => {
   const [smoothedCents, setSmoothedCents] = useState(cents);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    // Diminuído para mais suavidade
     const smoothingFactor = 0.05;
-
     const animate = () => {
       setSmoothedCents(currentSmoothedCents => {
         const newSmoothedCents = currentSmoothedCents + (cents - currentSmoothedCents) * smoothingFactor;
-        if (Math.abs(cents - newSmoothedCents) < 0.01) {
-          return cents;
-        }
+        if (Math.abs(cents - newSmoothedCents) < 0.01) return cents;
         return newSmoothedCents;
       });
       animationFrameRef.current = requestAnimationFrame(animate);
     };
-
     animationFrameRef.current = requestAnimationFrame(animate);
-
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, [cents]);
 
@@ -57,45 +49,79 @@ const DebugIndicator = ({ frequency, confidence }: { frequency: number, confiden
   );
 };
 
+
+// O TIPO DA NOTA AGORA É SEPARADO PARA REUTILIZAÇÃO
+type NoteData = {
+  name: string;
+  cents: number;
+  frequency: number;
+  confidence: number;
+};
+
+
 function App() {
-  const { note, status, error, start, stop } = useCrepePitch();
+  // O 'note' do nosso hook useCrepePitch
+  const { note: detectedNote, status, error, start, stop } = useCrepePitch();
   
+  // O NOVO ESTADO: a nota que será exibida na UI, com persistência
+  const [displayNote, setDisplayNote] = useState<NoteData | null>(null);
+  const decayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Limpa qualquer timer de decaimento anterior
+    if (decayTimeoutRef.current) {
+      clearTimeout(decayTimeoutRef.current);
+    }
+
+    if (detectedNote) {
+      // Se uma nota é detectada, atualiza a exibição imediatamente
+      setDisplayNote(detectedNote);
+    } else {
+      // Se o sinal for perdido, inicia um timer de 750ms
+      decayTimeoutRef.current = setTimeout(() => {
+        setDisplayNote(null); // Limpa a exibição somente após o timer
+      }, 750); // Tempo de persistência em milissegundos
+    }
+
+    return () => {
+      if (decayTimeoutRef.current) {
+        clearTimeout(decayTimeoutRef.current);
+      }
+    };
+  }, [detectedNote]); // Este efeito reage à nota detectada pelo hook
+
   const [rawValues, setRawValues] = useState({ freq: 0, conf: 0 });
 
   useEffect(() => {
-    if (note) {
-      setRawValues({ freq: note.frequency, conf: note.confidence });
+    if (detectedNote) {
+      setRawValues({ freq: detectedNote.frequency, conf: detectedNote.confidence });
     } else {
       setRawValues(prev => ({ freq: prev.freq, conf: 0 }));
     }
-  }, [note]);
+  }, [detectedNote]);
 
-  // O componente da interface do afinador foi movido para fora para clareza
+  
   const TunerInterface = () => {
     const [isLockedIn, setIsLockedIn] = useState(false);
     const inTuneTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-      if (inTuneTimeoutRef.current) {
-        clearTimeout(inTuneTimeoutRef.current);
-      }
-
-      if (note && Math.abs(note.cents) < 5) {
-        inTuneTimeoutRef.current = setTimeout(() => {
-          setIsLockedIn(true);
-        }, 1000);
+      if (inTuneTimeoutRef.current) clearTimeout(inTuneTimeoutRef.current);
+      
+      // A lógica de "lock-in" agora usa a 'displayNote'
+      if (displayNote && Math.abs(displayNote.cents) < 5) {
+        inTuneTimeoutRef.current = setTimeout(() => setIsLockedIn(true), 1000);
       } else {
         setIsLockedIn(false);
       }
 
       return () => {
-        if (inTuneTimeoutRef.current) {
-          clearTimeout(inTuneTimeoutRef.current);
-        }
+        if (inTuneTimeoutRef.current) clearTimeout(inTuneTimeoutRef.current);
       };
-    }, [note]);
+    }, [displayNote]);
 
-    if (!note) {
+    // A interface agora reage à 'displayNote', não à 'detectedNote'
+    if (!displayNote) {
       return (
         <div className="h-[250px] flex flex-col items-center justify-center">
           <p className="text-2xl text-gray-400">Toque uma nota...</p>
@@ -103,20 +129,20 @@ function App() {
       );
     }
     
-    const isVisuallyInTune = isLockedIn || Math.abs(note.cents) < 5;
+    const isVisuallyInTune = isLockedIn || Math.abs(displayNote.cents) < 5;
 
     return (
       <div className={`w-full max-w-md p-6 bg-gray-800 rounded-xl shadow-lg flex flex-col items-center justify-center h-[250px] transition-all duration-500 ${isLockedIn ? 'ring-4 ring-green-400' : ''}`}>
         <div className="flex items-baseline space-x-2">
           <p className={`text-8xl font-bold transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-blue-300'} ${isLockedIn ? 'scale-110' : ''}`}>
-            {note.name.slice(0, -1)}
+            {displayNote.name.slice(0, -1)}
           </p>
-          <p className="text-4xl text-gray-400">{note.name.slice(-1)}</p>
+          <p className="text-4xl text-gray-400">{displayNote.name.slice(-1)}</p>
         </div>
         <p className={`text-xl font-medium transition-all duration-300 ${isVisuallyInTune ? 'text-green-400' : 'text-red-400'} ${isLockedIn ? 'scale-110' : ''}`}>
-          {note.cents.toFixed(1)} cents
+          {displayNote.cents.toFixed(1)} cents
         </p>
-        <CentsMeter cents={note.cents} />
+        <CentsMeter cents={displayNote.cents} />
       </div>
     );
   };
@@ -125,7 +151,7 @@ function App() {
     <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center text-center p-4 font-mono relative">
       <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold">StringMaster</h1>
-        <p className="text-xl text-blue-300">v3.3 - Polished & Gamified</p>
+        <p className="text-xl text-blue-300">v3.4 - Note Persistence</p>
       </header>
 
       <main>
