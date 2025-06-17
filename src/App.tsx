@@ -1,16 +1,49 @@
-import { useEffect, useState } from 'react'; // Importa useState e useEffect do react
+import { useEffect, useState, useRef } from 'react';
 import { useCrepePitch } from './useCrepePitch';
 
-// Componente visual para o medidor de afinação
+// Componente visual para o medidor de afinação com suavização (Lerp)
 const CentsMeter = ({ cents }: { cents: number }) => {
-  const percentage = (cents + 50);
-  const isInTune = Math.abs(cents) < 5;
+  const [smoothedCents, setSmoothedCents] = useState(cents);
+  const animationFrameRef = useRef<number>();
+
+  useEffect(() => {
+    // Fator de suavização (0.1 = 10% do caminho a cada frame)
+    const smoothingFactor = 0.1;
+
+    const animate = () => {
+      setSmoothedCents(currentSmoothedCents => {
+        // Interpolação Linear (Lerp)
+        const newSmoothedCents = currentSmoothedCents + (cents - currentSmoothedCents) * smoothingFactor;
+        
+        // Se estivermos muito perto, apenas salta para o valor final para evitar trepidação infinita
+        if (Math.abs(cents - newSmoothedCents) < 0.01) {
+          return cents;
+        }
+        
+        return newSmoothedCents;
+      });
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    // Inicia a animação
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    // Função de limpeza para parar a animação quando o componente for desmontado ou 'cents' mudar
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrame-ref.current);
+      }
+    };
+  }, [cents]); // Este efeito re-executa sempre que o 'cents' alvo muda
+
+  const percentage = (smoothedCents + 50);
+  const isInTune = Math.abs(smoothedCents) < 5;
 
   return (
     <div className="w-full max-w-sm bg-gray-700 rounded-full h-4 my-4 relative">
       <div className="absolute left-1/2 top-0 h-full w-1 bg-green-500 transform -translate-x-1/2"></div>
       <div
-        className="absolute top-0 h-4 w-1 rounded-full transition-all duration-75"
+        className="absolute top-0 h-4 w-1 rounded-full" // A transição CSS não é mais necessária
         style={{
           left: `${percentage}%`,
           backgroundColor: isInTune ? '#4ade80' : '#f87171',
@@ -21,7 +54,8 @@ const CentsMeter = ({ cents }: { cents: number }) => {
   );
 };
 
-// Componente para o indicador de depuração
+// ... (O resto do arquivo App.tsx, DebugIndicator, etc., permanece o mesmo)
+
 const DebugIndicator = ({ frequency, confidence }: { frequency: number, confidence: number }) => {
   return (
     <div className="absolute bottom-4 right-4 text-xs text-gray-600 bg-gray-800 p-2 rounded">
@@ -34,15 +68,12 @@ const DebugIndicator = ({ frequency, confidence }: { frequency: number, confiden
 function App() {
   const { note, status, error, start, stop } = useCrepePitch();
   
-  // Estado para os valores brutos, vivendo no componente principal
   const [rawValues, setRawValues] = useState({ freq: 0, conf: 0 });
 
-  // Efeito que observa a 'note' e atualiza os valores brutos
   useEffect(() => {
     if (note) {
       setRawValues({ freq: note.frequency, conf: note.confidence });
     }
-    // Não reseta quando a nota é nula, para vermos o último valor capturado
   }, [note]);
 
 
@@ -77,7 +108,7 @@ function App() {
     <div className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center text-center p-4 font-mono relative">
       <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold">StringMaster</h1>
-        <p className="text-xl text-blue-300">v3.1 - Debug Mode</p>
+        <p className="text-xl text-blue-300">v3.2 - UX Polish</p>
       </header>
 
       <main>
@@ -101,7 +132,6 @@ function App() {
         )}
       </main>
       
-      {/* O indicador de depuração agora vive aqui, fora das condicionais */}
       {status === 'listening' && <DebugIndicator frequency={rawValues.freq} confidence={rawValues.conf} />}
     </div>
   );
