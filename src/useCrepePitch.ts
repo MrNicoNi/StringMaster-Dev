@@ -4,14 +4,12 @@ import * as ml5 from 'ml5';
 const A4_FREQUENCY = 440;
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// Adicionamos um novo tipo para a nota alvo
 export type TargetNote = {
-  name: string; // ex: "E2"
-  freq: number; // ex: 82.41
+  name: string;
+  freq: number;
 };
 
-// O hook agora aceita uma nota alvo opcional
-export const useCrepePitch = (targetNote: TargetNote | null = null) => {
+export const useCrepePitch = (targetNoteName: string | null = null) => {
   const [note, setNote] = useState<{ name: string; cents: number; confidence: number; frequency: number } | null>(null);
   const [status, setStatus] = useState<'ready' | 'listening' | 'error' | 'initializing'>('ready');
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +20,7 @@ export const useCrepePitch = (targetNote: TargetNote | null = null) => {
   const animationFrameRef = useRef<number | null>(null);
 
   const start = useCallback(async () => {
-    // ... (a função start permanece a mesma)
+    if (status === 'listening' || status === 'initializing') return;
     setStatus('initializing');
     setError(null);
     try {
@@ -40,13 +38,15 @@ export const useCrepePitch = (targetNote: TargetNote | null = null) => {
       else setError('Ocorreu um erro desconhecido ao iniciar.');
       setStatus('error');
     }
-  }, []);
+  }, [status]);
 
   const stop = useCallback(() => {
-    // ... (a função stop permanece a mesma)
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = null;
     if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') audioContextRef.current.close();
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
     pitchRef.current = null;
     setStatus('ready');
     setNote(null);
@@ -58,7 +58,6 @@ export const useCrepePitch = (targetNote: TargetNote | null = null) => {
 
       pitchRef.current.getPitch((err: any, frequency: number | null) => {
         if (err || !frequency) {
-          if (err) console.error(err);
           setNote(null);
         } else {
           const semitonesFromA4 = 12 * Math.log2(frequency / A4_FREQUENCY);
@@ -67,8 +66,7 @@ export const useCrepePitch = (targetNote: TargetNote | null = null) => {
           const octave = Math.floor((nearestNoteIndex + 9) / 12) + 4;
           const currentNoteName = `${NOTE_NAMES[noteNameIndex]}${octave}`;
 
-          // LÓGICA DE FILTRO: Se temos uma nota alvo, só processa se for a nota certa
-          if (targetNote && currentNoteName !== targetNote.name) {
+          if (targetNoteName && currentNoteName !== targetNoteName) {
             setNote(null);
           } else {
             const targetFrequency = A4_FREQUENCY * Math.pow(2, nearestNoteIndex / 12);
@@ -77,20 +75,32 @@ export const useCrepePitch = (targetNote: TargetNote | null = null) => {
           }
         }
         
-        if (status === 'listening') {
+        // Garante que o loop continue apenas se ainda estivermos no estado 'listening'
+        if (animationFrameRef.current) {
           animationFrameRef.current = requestAnimationFrame(getPitchLoop);
         }
       });
     };
 
     if (status === 'listening' && pitchRef.current) {
+      // Inicia o loop
       animationFrameRef.current = requestAnimationFrame(getPitchLoop);
+    } else {
+      // Garante que o loop pare se o status não for mais 'listening'
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
     }
 
+    // Função de limpeza para parar o loop quando o componente for desmontado
     return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
     };
-  }, [status, targetNote]); // O efeito agora também depende da 'targetNote'
+  }, [status, targetNoteName]); // O efeito agora também depende da 'targetNoteName'
 
   return { note, status, error, start, stop };
 };
