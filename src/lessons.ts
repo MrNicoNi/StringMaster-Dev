@@ -28,12 +28,11 @@ export const lessons: Lesson[] = [
     title: 'Mão Esquerda: Exercício Cromático',
     challenges: [
       { id: 'l2c1', instruction: '6ª corda, 1ª casa (Dedo 1)', targetNote: 'F2' },
-      { id: 'l2c2', instruction: '6ª corda, 2ª casa (Dedo 2)', targetNote: 'F#3' },
+      { id: 'l2c2', instruction: '6ª corda, 2ª casa (Dedo 2)', targetNote: 'F#2' },
       { id: 'l2c3', instruction: '6ª corda, 3ª casa (Dedo 3)', targetNote: 'G2' },
       { id: 'l2c4', instruction: '6ª corda, 4ª casa (Dedo 4)', targetNote: 'G#2' },
     ],
   },
-  // NOVA LIÇÃO ADICIONADA
   {
     id: 'lesson-3',
     title: 'Mão Esquerda: Independência (Aranha)',
@@ -42,6 +41,19 @@ export const lessons: Lesson[] = [
       { id: 'l3c2', instruction: '5ª corda, 3ª casa (Dedo 3)', targetNote: 'C3' },
       { id: 'l3c3', instruction: '6ª corda, 2ª casa (Dedo 2)', targetNote: 'F#2' },
       { id: 'l3c4', instruction: '5ª corda, 4ª casa (Dedo 4)', targetNote: 'C#3' },
+    ],
+  },
+  // NOVA LIÇÃO ADICIONADA
+  {
+    id: 'lesson-4',
+    title: 'Primeiros Acordes: Mi menor (Em)',
+    challenges: [
+      { id: 'l4c1', instruction: 'Acorde Em: Toque a 6ª corda', targetNote: 'E2' },
+      { id: 'l4c2', instruction: 'Acorde Em: Toque a 5ª corda', targetNote: 'B2' },
+      { id: 'l4c3', instruction: 'Acorde Em: Toque a 4ª corda', targetNote: 'E3' },
+      { id: 'l4c4', instruction: 'Acorde Em: Toque a 3ª corda', targetNote: 'G3' },
+      { id: 'l4c5', instruction: 'Acorde Em: Toque a 2ª corda', targetNote: 'B3' },
+      { id: 'l4c6', instruction: 'Acorde Em: Toque a 1ª corda', targetNote: 'E4' },
     ],
   },
 ];
