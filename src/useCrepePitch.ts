@@ -6,7 +6,7 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 
 export const useCrepePitch = () => {
   const [note, setNote] = useState<{ name: string; cents: number; confidence: number; frequency: number } | null>(null);
-  const [status, setStatus] = useState<'ready' | 'listening' | 'error' | 'initializing'>('ready'); // Removido 'loading'
+  const [status, setStatus] = useState<'ready' | 'listening' | 'error' | 'initializing'>('ready');
   const [error, setError] = useState<string | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -14,7 +14,6 @@ export const useCrepePitch = () => {
   const pitchRef = useRef<any>(null);
 
   const getPitch = useCallback((err: any, result: { frequency: number, confidence: number } | undefined) => {
-    // ... (esta função permanece exatamente a mesma)
     if (err) {
       console.error(err);
       setError("Ocorreu um erro na detecção de pitch.");
@@ -36,39 +35,41 @@ export const useCrepePitch = () => {
   }, []);
 
   const start = useCallback(async () => {
-    setStatus('initializing'); // Novo estado para mostrar que estamos carregando
+    setStatus('initializing');
     setError(null);
 
     try {
-      // INICIALIZAÇÃO "SOB DEMANDA"
-      if (!pitchRef.current) {
-        console.log('Inicializando modelo ml5 sob demanda...');
-        const model = await ml5.pitchDetection(
-          './model/', 
-          new (window.AudioContext || (window as any).webkitAudioContext)(),
-          undefined
-        );
-        pitchRef.current = model;
-        console.log('Modelo ml5 carregado com sucesso.');
-      }
-
-      const audioContext = pitchRef.current.audioContext;
-      await audioContext.resume();
-      
+      // Passo 1: Obter o stream do microfone PRIMEIRO.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      
-      if (pitchRef.current && typeof pitchRef.current.listen === 'function') {
-        pitchRef.current.listen(getPitch, stream);
-        setStatus('listening');
-      } else {
-        throw new Error('Modelo de áudio (pitchRef) não está pronto ou não tem o método .listen().');
-      }
+
+      // Passo 2: Criar o AudioContext.
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      await audioContext.resume();
+
+      // Passo 3: Inicializar o modelo PASSANDO o stream para ele.
+      // A função de callback 'modelReady' será chamada quando o modelo carregar.
+      const model = await ml5.pitchDetection(
+        './model/',
+        audioContext,
+        stream,
+        () => {
+          // Passo 4: SOMENTE APÓS o modelo estar pronto, chame .listen()
+          if (pitchRef.current && typeof pitchRef.current.getPitch === 'function') {
+            pitchRef.current.getPitch(getPitch);
+            setStatus('listening');
+          } else {
+            throw new Error('Modelo carregado, mas o método .getPitch() não foi encontrado.');
+          }
+        }
+      );
+      pitchRef.current = model;
 
     } catch (err) {
       console.error("Erro detalhado:", err);
       if (err instanceof Error) {
-        setError(`Erro ao iniciar: ${err.message}`);
+        setError(`Erro ao iniciar: ${err.name} - ${err.message}`);
       } else {
         setError('Ocorreu um erro desconhecido ao iniciar.');
       }
@@ -77,17 +78,20 @@ export const useCrepePitch = () => {
   }, [getPitch]);
 
   const stop = useCallback(() => {
-    // ... (esta função permanece exatamente a mesma)
-    if (pitchRef.current) pitchRef.current.stop();
-    if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+    if (pitchRef.current) {
+        // A biblioteca ml5 não tem um método .stop() explícito para pitchDetection
+        // A parada é feita fechando o stream e o audio context
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close();
     }
+    pitchRef.current = null;
     setStatus('ready');
     setNote(null);
   }, []);
-  
-  // O useEffect foi removido, pois a inicialização agora é no 'start'
 
   return { note, status, error, start, stop };
 };
